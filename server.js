@@ -32,7 +32,7 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('تم الاتصال بقاعدة البيانات بنجاح'))
   .catch(err => console.log('خطأ في الاتصال بقاعدة البيانات:', err));
 
-// المصادقة وتحديث الملف الشخصي
+// بوابات المصادقة
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'لم يتم رفع أي ملف' });
   res.json({ url: `/uploads/${req.file.filename}` });
@@ -46,6 +46,7 @@ app.post('/api/register', async (req, res) => {
     await newUser.save();
     res.status(201).json({ message: 'تم إنشاء الحساب بنجاح!' });
   } catch (err) {
+    console.error('خطأ في التسجيل:', err);
     res.status(500).json({ error: 'حدث خطأ، البريد مستخدم مسبقاً.' });
   }
 });
@@ -53,18 +54,33 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'الرجاء إدخال البريد وكلمة المرور' });
+    }
+
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'البريد غير مسجل.' });
+    if (!user) {
+      return res.status(400).json({ error: 'البريد غير مسجل.' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: 'كلمة المرور غير صحيحة.' });
+    if (!isMatch) {
+      return res.status(400).json({ error: 'كلمة المرور غير صحيحة.' });
+    }
 
     res.json({ 
       message: 'تم تسجيل الدخول بنجاح', 
-      user: { id: user._id.toString(), username: user.username, email: user.email, avatar: user.avatar || '', banner: user.banner || '' } 
+      user: { 
+        id: user._id.toString(), 
+        username: user.username, 
+        email: user.email, 
+        avatar: user.avatar || '', 
+        banner: user.banner || '' 
+      } 
     });
   } catch (err) {
-    res.status(500).json({ error: 'خطأ في الخادم.' });
+    console.error('خطأ مفصل في تسجيل الدخول:', err);
+    res.status(500).json({ error: 'خطأ في الخادم: ' + err.message });
   }
 });
 
@@ -79,15 +95,21 @@ app.post('/api/profile/update', async (req, res) => {
 
     res.json({ 
       message: 'تم تحديث الملف الشخصي', 
-      user: { id: updatedUser._id.toString(), username: updatedUser.username, email: updatedUser.email, avatar: updatedUser.avatar, banner: updatedUser.banner } 
+      user: { 
+        id: updatedUser._id.toString(), 
+        username: updatedUser.username, 
+        email: updatedUser.email, 
+        avatar: updatedUser.avatar, 
+        banner: updatedUser.banner 
+      } 
     });
   } catch (err) {
+    console.error('خطأ في التحديث:', err);
     res.status(500).json({ message: 'خطأ أثناء التحديث' });
   }
 });
 
-// بوابات نظام الأصدقاء (محمية ومحصنة ضد أخطاء 404 و 500)
-
+// بوابات نظام الأصدقاء
 app.get('/api/users/search', async (req, res) => {
   try {
     const { query, currentUserId } = req.query;
