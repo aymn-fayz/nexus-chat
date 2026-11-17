@@ -74,24 +74,25 @@ const dom = {
 // ==========================================
 // 1. INITIALIZATION & THEME
 // ==========================================
-dom.authForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const username = dom.usernameInput.value.trim();
-  if (!username) return;
 
-  state.currentUser = username;
-  dom.myUsername.textContent = username;
-  dom.myAvatar.textContent = username.charAt(0).toUpperCase();
-  dom.authModal.classList.remove('active');
+// جلب بيانات المستخدم المسجل مسبقاً من الـ localStorage وتعديل الواجهة تلقائياً
+const savedUser = JSON.parse(localStorage.getItem('nexus_user'));
+if (savedUser) {
+  state.currentUser = savedUser.username;
+  if (dom.myUsername) dom.myUsername.textContent = savedUser.username;
+  if (dom.myAvatar) dom.myAvatar.textContent = savedUser.username.charAt(0).toUpperCase();
+  
+  // إرسال طلب التسجيل للسيرفر عبر Socket.io فور فتح الصفحة
+  socket.emit('register', savedUser.username);
+}
 
-  socket.emit('register', username);
-});
-
-dom.themeToggle.addEventListener('click', () => {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-});
+if (dom.themeToggle) {
+  dom.themeToggle.addEventListener('click', () => {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  });
+}
 
 // ==========================================
 // 2. CONTACTS & NAVIGATION
